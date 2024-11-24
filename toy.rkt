@@ -27,41 +27,42 @@
 (define (string-drop-suffix str suffix)
   (string-drop-from-end str (string-length suffix)))
 
+(define-syntax-rule (find-numeric-char
+                      recur
+                      str
+                      next-equal?
+                      current-char
+                      drop-current-char)
+  (cond
+    [(next-equal? str "one") #\1]
+    [(next-equal? str "two") #\2]
+    [(next-equal? str "three") #\3]
+    [(next-equal? str "four") #\4]
+    [(next-equal? str "five") #\5]
+    [(next-equal? str "six") #\6]
+    [(next-equal? str "seven") #\7]
+    [(next-equal? str "eight") #\8]
+    [(next-equal? str "nine") #\9]
+    [(char-numeric? current-char) current-char]
+    [else (recur (drop-current-char str 1))]))
+
 (: first-numeric-char (-> String Char))
 (define (first-numeric-char str)
-  (cond
-    [(string-prefix? str "one") #\1]
-    [(string-prefix? str "two") #\2]
-    [(string-prefix? str "three") #\3]
-    [(string-prefix? str "four") #\4]
-    [(string-prefix? str "five") #\5]
-    [(string-prefix? str "six") #\6]
-    [(string-prefix? str "seven") #\7]
-    [(string-prefix? str "eight") #\8]
-    [(string-prefix? str "nine") #\9]
-    [(char-numeric? (string-first-char str))
-     (string-first-char str)]
-    [else
-     (first-numeric-char
-       (string-drop-from-beginning str 1))]))
+  (find-numeric-char
+    first-numeric-char
+    str
+    string-prefix?
+    (string-first-char str)
+    string-drop-from-beginning))
 
 (: last-numeric-char (-> String Char))
 (define (last-numeric-char str)
-  (cond
-    [(string-suffix? str "one") #\1]
-    [(string-suffix? str "two") #\2]
-    [(string-suffix? str "three") #\3]
-    [(string-suffix? str "four") #\4]
-    [(string-suffix? str "five") #\5]
-    [(string-suffix? str "six") #\6]
-    [(string-suffix? str "seven") #\7]
-    [(string-suffix? str "eight") #\8]
-    [(string-suffix? str "nine") #\9]
-    [(char-numeric? (string-last-char str))
-     (string-last-char str)]
-    [else
-     (last-numeric-char
-       (string-drop-from-end str 1))]))
+  (find-numeric-char
+    last-numeric-char
+    str
+    string-suffix?
+    (string-last-char str)
+    string-drop-from-end))
 
 (: get-integer (-> String Integer))
 (define (get-integer str)
