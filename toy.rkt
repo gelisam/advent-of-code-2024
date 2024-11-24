@@ -27,24 +27,17 @@
 (define (string-drop-suffix str suffix)
   (string-drop-from-end str (string-length suffix)))
 
-(define-syntax-rule (find-numeric-char
-                      recur
-                      str
-                      next-equal?
-                      current-char
-                      drop-current-char)
-  (cond
-    [(next-equal? str "one") #\1]
-    [(next-equal? str "two") #\2]
-    [(next-equal? str "three") #\3]
-    [(next-equal? str "four") #\4]
-    [(next-equal? str "five") #\5]
-    [(next-equal? str "six") #\6]
-    [(next-equal? str "seven") #\7]
-    [(next-equal? str "eight") #\8]
-    [(next-equal? str "nine") #\9]
-    [(char-numeric? current-char) current-char]
-    [else (recur (drop-current-char str 1))]))
+(define-syntax (find-numeric-char stx)
+  (syntax-case stx ()
+    [(_ recur str next-equal? current-char drop-current-char)
+     (with-syntax ([(cases ...)
+                    (for/list ([num (in-list '("one" "two" "three" "four" "five" "six" "seven" "eight" "nine"))]
+                               [char (in-list '(#\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))])
+                      #`[(next-equal? str #,num) #,char])])
+       #'(cond
+           cases ...
+           [(char-numeric? current-char) current-char]
+           [else (recur (drop-current-char str 1))]))]))
 
 (: first-numeric-char (-> String Char))
 (define (first-numeric-char str)
