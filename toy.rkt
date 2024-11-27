@@ -204,7 +204,7 @@
   (Just (Triple "abc" (Unit) "def-ghi")))
 
 (define-forall [A B]
-               (string-matcher-map a2b parser)
+               (string-parser-map a2b parser)
              : (-> (-> A B)
                     (StringParser A)
                     (StringParser B))
@@ -216,10 +216,10 @@
        (Nothing)])))
 (assert-equal
   (split-at-first [String]
-                  (string-matcher-map [(Listof Char) String]
-                                      list->string
-                                      (matching-chars [Char]
-                                        (pred->maybe char-numeric?)))
+                  (string-parser-map [(Listof Char) String]
+                                     list->string
+                                     (matching-chars [Char]
+                                       (pred->maybe char-numeric?)))
                   "abc123def")
   (Just (Triple "abc" "123" "def")))
 
@@ -230,16 +230,16 @@
     (Nothing)))
 
 (define-forall [A]
-               (string-matcher-or matchers)
+               (string-parser-or parsers)
              : (-> (Listof (StringParser A))
                     (StringParser A))
   (lambda (f)
-    (let loop ([matchers matchers])
-      (match matchers
+    (let loop ([parsers parsers])
+      (match parsers
         [(list)
           (Nothing)]
-        [(cons matcher rest)
-          (match (matcher f)
+        [(cons parser rest)
+          (match (parser f)
             [(Just result)
             (Just result)]
             [(Nothing)
@@ -247,7 +247,7 @@
 (assert-equal
   (map (lambda ([s : String])
          (split-at-first [Char]
-                         (string-matcher-or [Char]
+                         (string-parser-or [Char]
                                            (list (exact-char [Char] #\- #\-)
                                                  (exact-char [Char] #\: #\:)))
                          s))
@@ -260,59 +260,39 @@
 (: input (Listof String))
 (define input (file->lines "example-input.txt"))
 
-(: string-first-char (-> String Char))
-(define (string-first-char str)
-  (string-ref str 0))
-
-(: string-last-char (-> String Char))
-(define (string-last-char str)
-  (string-ref str (sub1 (string-length str))))
-
-(: string-drop-from-beginning (-> String Integer String))
-(define (string-drop-from-beginning str n)
-  (substring str n))
-
-(: string-drop-from-end (-> String Integer String))
-(define (string-drop-from-end str n)
-  (substring str 0 (- (string-length str) n)))
-
-(: string-drop-prefix (-> String String String))
-(define (string-drop-prefix str prefix)
-  (string-drop-from-beginning str (string-length prefix)))
-
-(: string-drop-suffix (-> String String String))
-(define (string-drop-suffix str suffix)
-  (string-drop-from-end str (string-length suffix)))
-
-(define-syntax (find-numeric-char stx)
-  (syntax-case stx ()
-    [(_ recur str next-equal? current-char drop-current-char)
-     (with-syntax ([(cases ...)
-                    (for/list ([num (in-list '("one" "two" "three" "four" "five" "six" "seven" "eight" "nine"))]
-                               [char (in-list '(#\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9))])
-                      #`[(next-equal? str #,num) #,char])])
-       #'(cond
-           cases ...
-           [(char-numeric? current-char) current-char]
-           [else (recur (drop-current-char str 1))]))]))
+(: find-numeric-char (StringParser Char))
+(define find-numeric-char
+  (string-parser-or [Char]
+    (list (exact-char [Char] #\1 #\1)
+          (exact-char [Char] #\2 #\2)
+          (exact-char [Char] #\3 #\3)
+          (exact-char [Char] #\4 #\4)
+          (exact-char [Char] #\5 #\5)
+          (exact-char [Char] #\6 #\6)
+          (exact-char [Char] #\7 #\7)
+          (exact-char [Char] #\8 #\8)
+          (exact-char [Char] #\9 #\9)
+          (exact-string [Char] "one"   #\1)
+          (exact-string [Char] "two"   #\2)
+          (exact-string [Char] "three" #\3)
+          (exact-string [Char] "four"  #\4)
+          (exact-string [Char] "five"  #\5)
+          (exact-string [Char] "six"   #\6)
+          (exact-string [Char] "seven" #\7)
+          (exact-string [Char] "eight" #\8)
+          (exact-string [Char] "nine"  #\9))))
 
 (: first-numeric-char (-> String Char))
 (define (first-numeric-char str)
-  (find-numeric-char
-    first-numeric-char
-    str
-    string-prefix?
-    (string-first-char str)
-    string-drop-from-beginning))
+  (match (find-first [Char] find-numeric-char str)
+    [(Just c) c]
+    [(Nothing) (error 'first-numeric-char "no numeric char found")]))
 
 (: last-numeric-char (-> String Char))
 (define (last-numeric-char str)
-  (find-numeric-char
-    last-numeric-char
-    str
-    string-suffix?
-    (string-last-char str)
-    string-drop-from-end))
+  (match (find-last [Char] find-numeric-char str)
+    [(Just c) c]
+    [(Nothing) (error 'last-numeric-char "no numeric char found")]))
 
 (: get-integer (-> String Integer))
 (define (get-integer str)
