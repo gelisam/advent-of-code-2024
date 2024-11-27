@@ -33,8 +33,8 @@
 ;;;;;;
 
 (define-syntax (define-forall stx)
-  (syntax-case stx ()
-    [(_ [A ...] T (name args ...) body ...)
+  (syntax-case stx (:)
+    [(_ [A ...] (name args ...) : T body ...)
      #`(begin
          (: tmp-name (All [A ...] T))
          (define (tmp-name args ...)
@@ -50,10 +50,11 @@
   (All [X] (-> (-> Integer (Pair String X))
                (Maybe (Pair A X)))))
 
-(define-forall [A] (-> (StringParser A)
-                       String
-                       (Maybe (Triple String A String)))
+(define-forall [A]
                (split-at-first parser str)
+             : (-> (StringParser A)
+                   String
+                   (Maybe (Triple String A String)))
   (let ([n (string-length str)])
     (let loop ([start 0])
       (: f (-> Integer (Pair String Integer)))
@@ -71,10 +72,11 @@
              (Nothing)
              (loop (+ start 1)))]))))
 
-(define-forall [A] (-> (StringParser A)
-                        String
-                        (Maybe (Triple String A String)))
+(define-forall [A]
                (split-at-last parser str)
+             : (-> (StringParser A)
+                    String
+                    (Maybe (Triple String A String)))
   (let ([n (string-length str)])
     (let loop ([end n])
       (: f (-> Integer (Pair String Integer)))
@@ -92,29 +94,32 @@
              (Nothing)
              (loop (- end 1)))]))))
 
-(define-forall [A] (-> (StringParser A)
-                        String
-                        (Maybe A))
+(define-forall [A]
                (find-first (parser : (StringParser A)) str)
+             : (-> (StringParser A)
+                    String
+                    (Maybe A))
   (match (split-at-first [A] parser str)
     [(Just (Triple _ a _))
      (Just a)]
     [(Nothing)
      (Nothing)]))
 
-(define-forall [A] (-> (StringParser A)
-                       String
-                       (Maybe A))
+(define-forall [A]
                (find-last parser str)
+             : (-> (StringParser A)
+                   String
+                   (Maybe A))
   (match (split-at-last [A] parser str)
     [(Just (Triple _ a _))
      (Just a)]
     [(Nothing)
      (Nothing)]))
 
-(define-forall [A] (-> (-> Char (Maybe A))
-                       (StringParser A))
+(define-forall [A]
                (matching-char pred)
+             : (-> (-> Char (Maybe A))
+                   (StringParser A))
   (lambda (f)
     (match (f 1)
       [(Pair str x)
@@ -131,9 +136,10 @@
                   "abc123def")
   (Just (Triple "abc" #\1 "23def")))
 
-(define-forall [A] (-> (-> Char (Maybe A))
-                        (StringParser (Listof A)))
+(define-forall [A]
                (matching-chars pred)
+             : (-> (-> Char (Maybe A))
+                    (StringParser (Listof A)))
   (lambda #:forall [X] ((f : (-> Integer (Pair String X))))
     (let loop ([reversed-as : (Listof A)
                 (list)]
@@ -162,8 +168,9 @@
                   "abc123def")
   (Just (Triple "abc" (list #\1 #\2 #\3) "def")))
 
-(define-forall [A] (-> String A (StringParser A))
+(define-forall [A]
                (exact-string expected a)
+             : (-> String A (StringParser A))
   (lambda (f)
     (match (f (string-length expected))
       [(Pair actual x)
@@ -181,8 +188,9 @@
                  "abc-def-ghi")
   (Just (Triple "abc-def" (Unit) "ghi")))
 
-(define-forall [A] (-> Char A (StringParser A))
+(define-forall [A]
                (exact-char expected a)
+             : (-> Char A (StringParser A))
   (let ([pred : (-> Char (Maybe A))
         (lambda (actual)
           (if (char=? actual expected)
@@ -195,10 +203,11 @@
                   "abc-def-ghi")
   (Just (Triple "abc" (Unit) "def-ghi")))
 
-(define-forall [A B] (-> (-> A B)
-                          (StringParser A)
-                          (StringParser B))
+(define-forall [A B]
                (string-matcher-map a2b parser)
+             : (-> (-> A B)
+                    (StringParser A)
+                    (StringParser B))
   (lambda (f)
     (match (parser f)
       [(Just (Pair a x))
@@ -214,14 +223,16 @@
                   "abc123def")
   (Just (Triple "abc" "123" "def")))
 
-(define-forall [A] (-> (StringParser A))
+(define-forall [A]
                (match-no-strings)
+             : (-> (StringParser A))
   (lambda (f)
     (Nothing)))
 
-(define-forall [A] (-> (Listof (StringParser A))
-                        (StringParser A))
+(define-forall [A]
                (string-matcher-or matchers)
+             : (-> (Listof (StringParser A))
+                    (StringParser A))
   (lambda (f)
     (let loop ([matchers matchers])
       (match matchers
