@@ -32,15 +32,28 @@
 
 ;;;;;;
 
+(define-syntax (define-forall stx)
+  (syntax-case stx ()
+    [(_ [A ...] T (name args ...) body ...)
+     #`(begin
+         (: tmp-name (All [A ...] T))
+         (define (tmp-name args ...)
+           body ...)
+         (define-syntax (name stx2)
+           (syntax-case stx2 ()
+             [(_ [A2 (... ...)] args2 (... ...))
+              #`((inst tmp-name A2 (... ...)) args2 (... ...))])))]))
+
+;;;;;;
+
 (define-type (StringParser A)
   (All [X] (-> (-> Integer (Pair String X))
                (Maybe (Pair A X)))))
 
-(: split-at-first
-   (All [A] (-> (StringParser A)
-                String
-                (Maybe (Triple String A String)))))
-(define (split-at-first parser str)
+(define-forall [A] (-> (StringParser A)
+                       String
+                       (Maybe (Triple String A String)))
+               (split-at-first parser str)
   (let ([n (string-length str)])
     (let loop ([start 0])
       (: f (-> Integer (Pair String Integer)))
@@ -58,11 +71,10 @@
              (Nothing)
              (loop (+ start 1)))]))))
 
-(: split-at-last
-   (All [A] (-> (StringParser A)
-                String
-                (Maybe (Triple String A String)))))
-(define (split-at-last parser str)
+(define-forall [A] (-> (StringParser A)
+                        String
+                        (Maybe (Triple String A String)))
+               (split-at-last parser str)
   (let ([n (string-length str)])
     (let loop ([end n])
       (: f (-> Integer (Pair String Integer)))
@@ -80,32 +92,29 @@
              (Nothing)
              (loop (- end 1)))]))))
 
-(: find-first
-   (All [A] (-> (StringParser A)
-                String
-                (Maybe A))))
-(define (find-first (parser : (StringParser A)) str)
-  (match ((inst split-at-first A) parser str)
+(define-forall [A] (-> (StringParser A)
+                        String
+                        (Maybe A))
+               (find-first (parser : (StringParser A)) str)
+  (match (split-at-first [A] parser str)
     [(Just (Triple _ a _))
      (Just a)]
     [(Nothing)
      (Nothing)]))
 
-(: find-last
-   (All [A] (-> (StringParser A)
-                String
-                (Maybe A))))
-(define (find-last parser str)
-  (match ((inst split-at-last A) parser str)
+(define-forall [A] (-> (StringParser A)
+                       String
+                       (Maybe A))
+               (find-last parser str)
+  (match (split-at-last [A] parser str)
     [(Just (Triple _ a _))
      (Just a)]
     [(Nothing)
      (Nothing)]))
 
-(: matching-char
-   (All [A] (-> (-> Char (Maybe A))
-                (StringParser A))))
-(define (matching-char pred)
+(define-forall [A] (-> (-> Char (Maybe A))
+                       (StringParser A))
+               (matching-char pred)
   (lambda (f)
     (match (f 1)
       [(Pair str x)
@@ -116,15 +125,15 @@
            [(Nothing)
             (Nothing)]))])))
 (assert-equal
-  ((inst split-at-first Char) ((inst matching-char Char)
-                               (pred->maybe char-numeric?))
-                              "abc123def")
+  (split-at-first [Char]
+                  (matching-char [Char]
+                                 (pred->maybe char-numeric?))
+                  "abc123def")
   (Just (Triple "abc" #\1 "23def")))
 
-(: matching-chars
-   (All [A] (-> (-> Char (Maybe A))
-                (StringParser (Listof A)))))
-(define (matching-chars pred)
+(define-forall [A] (-> (-> Char (Maybe A))
+                        (StringParser (Listof A)))
+               (matching-chars pred)
   (lambda #:forall [X] ((f : (-> Integer (Pair String X))))
     (let loop ([reversed-as : (Listof A)
                 (list)]
@@ -147,14 +156,14 @@
                [Nothing
                 (r)]))])))))
 (assert-equal
-  ((inst split-at-first (Listof Char)) ((inst matching-chars Char)
-                                        (pred->maybe char-numeric?))
-                                        "abc123def")
+  (split-at-first [(Listof Char)]
+                  (matching-chars [Char]
+                                  (pred->maybe char-numeric?))
+                  "abc123def")
   (Just (Triple "abc" (list #\1 #\2 #\3) "def")))
 
-(: exact-string
-   (All [A] (-> String A (StringParser A))))
-(define (exact-string expected a)
+(define-forall [A] (-> String A (StringParser A))
+               (exact-string expected a)
   (lambda (f)
     (match (f (string-length expected))
       [(Pair actual x)
@@ -162,37 +171,35 @@
            (Just (Pair a x))
            (Nothing))])))
 (assert-equal
-  ((inst split-at-first Unit) ((inst exact-string Unit) "-"
-                                                        (Unit))
-                              "abc-def-ghi")
+  (split-at-first [Unit]
+                  (exact-string [Unit] "-" (Unit))
+                  "abc-def-ghi")
   (Just (Triple "abc" (Unit) "def-ghi")))
 (assert-equal
-  ((inst split-at-last Unit) ((inst exact-string Unit) "-"
-                                                       (Unit))
-                             "abc-def-ghi")
+  (split-at-last [Unit]
+                 (exact-string [Unit] "-" (Unit))
+                 "abc-def-ghi")
   (Just (Triple "abc-def" (Unit) "ghi")))
 
-(: exact-char
-   (All [A] (-> Char A (StringParser A))))
-(define (exact-char expected a)
+(define-forall [A] (-> Char A (StringParser A))
+               (exact-char expected a)
   (let ([pred : (-> Char (Maybe A))
         (lambda (actual)
           (if (char=? actual expected)
               (Just a)
               (Nothing)))])
     (lambda (f)
-      ((matching-char pred) f))))
+      ((matching-char [A] pred) f))))
 (assert-equal
-  ((inst split-at-first Unit) ((inst exact-char Unit) #\-
-                                                      (Unit))
-                              "abc-def-ghi")
+  (split-at-first [Unit]
+                  (exact-char [Unit] #\- (Unit))
+                  "abc-def-ghi")
   (Just (Triple "abc" (Unit) "def-ghi")))
 
-(: string-matcher-map
-   (All [A B] (-> (-> A B)
-                  (StringParser A)
-                  (StringParser B))))
-(define (string-matcher-map a2b parser)
+(define-forall [A B] (-> (-> A B)
+                          (StringParser A)
+                          (StringParser B))
+               (string-matcher-map a2b parser)
   (lambda (f)
     (match (parser f)
       [(Just (Pair a x))
@@ -200,48 +207,47 @@
       [(Nothing)
        (Nothing)])))
 (assert-equal
-  ((inst split-at-first String) ((inst string-matcher-map (Listof Char) String)
-                                 list->string
-                                 ((inst matching-chars Char)
-                                  (pred->maybe char-numeric?)))
-                                "abc123def")
+  (split-at-first [String]
+                  (string-matcher-map [(Listof Char) String]
+                                      list->string
+                                      (matching-chars [Char]
+                                        (pred->maybe char-numeric?)))
+                  "abc123def")
   (Just (Triple "abc" "123" "def")))
 
-(: match-no-strings
-   (All [A] (-> (StringParser A))))
-(define (match-no-strings)
+(define-forall [A] (-> (StringParser A))
+               (match-no-strings)
   (lambda (f)
     (Nothing)))
 
-(: string-matcher-or
-   (All [A] (-> (Listof (StringParser A))
-                (StringParser A))))
-(define string-matcher-or
-  (lambda (matchers)
-    (lambda (f)
-      (let loop ([matchers matchers])
-        (match matchers
-          [(list)
-           (Nothing)]
-          [(cons matcher rest)
-           (match (matcher f)
-             [(Just result)
-              (Just result)]
-             [(Nothing)
-              (loop rest)])])))))
+(define-forall [A] (-> (Listof (StringParser A))
+                        (StringParser A))
+               (string-matcher-or matchers)
+  (lambda (f)
+    (let loop ([matchers matchers])
+      (match matchers
+        [(list)
+          (Nothing)]
+        [(cons matcher rest)
+          (match (matcher f)
+            [(Just result)
+            (Just result)]
+            [(Nothing)
+            (loop rest)])]))))
 (assert-equal
-  ((inst split-at-first Char) ((inst string-matcher-or Char)
-                               (list ((inst exact-char Char) #\- #\-)
-                                     ((inst exact-char Char) #\: #\:)))
-                              "abc-123:def")
+  (split-at-first [Char]
+                  (string-matcher-or [Char]
+                                     (list (exact-char [Char] #\- #\-)
+                                           (exact-char [Char] #\: #\:)))
+                  "abc-123:def")
   (Just (Triple "abc" #\- "123:def")))
 (assert-equal
-  ((inst split-at-first Char) ((inst string-matcher-or Char)
-                               (list ((inst exact-char Char) #\- #\-)
-                                     ((inst exact-char Char) #\: #\:)))
-                              "abc:123-def")
+  (split-at-first [Char]
+                  (string-matcher-or [Char]
+                                     (list (exact-char [Char] #\- #\-)
+                                           (exact-char [Char] #\: #\:)))
+                  "abc:123-def")
   (Just (Triple "abc" #\: "123-def")))
-
 
 ;;;;;;;
 
