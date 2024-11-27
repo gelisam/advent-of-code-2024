@@ -188,8 +188,7 @@
           (if (char=? actual expected)
               (Just a)
               (Nothing)))])
-    (lambda (f)
-      ((matching-char [A] pred) f))))
+    (matching-char [A] pred)))
 (assert-equal
   (split-at-first [Unit]
                   (exact-char [Unit] #\- (Unit))
