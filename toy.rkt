@@ -95,7 +95,7 @@
              (loop (- end 1)))]))))
 
 (define-forall [A]
-               (find-first (parser : (StringParser A)) str)
+               (find-first [parser : (StringParser A)] str)
              : (-> (StringParser A)
                     String
                     (Maybe A))
@@ -140,7 +140,7 @@
                (matching-chars pred)
              : (-> (-> Char (Maybe A))
                     (StringParser (Listof A)))
-  (lambda #:forall [X] ((f : (-> Integer (Pair String X))))
+  (lambda #:forall [X] ([f : (-> Integer (Pair String X))])
     (let loop ([reversed-as : (Listof A)
                 (list)]
                [n 0]
@@ -245,19 +245,15 @@
             [(Nothing)
             (loop rest)])]))))
 (assert-equal
-  (split-at-first [Char]
-                  (string-matcher-or [Char]
-                                     (list (exact-char [Char] #\- #\-)
-                                           (exact-char [Char] #\: #\:)))
-                  "abc-123:def")
-  (Just (Triple "abc" #\- "123:def")))
-(assert-equal
-  (split-at-first [Char]
-                  (string-matcher-or [Char]
-                                     (list (exact-char [Char] #\- #\-)
-                                           (exact-char [Char] #\: #\:)))
-                  "abc:123-def")
-  (Just (Triple "abc" #\: "123-def")))
+  (map (lambda ([s : String])
+         (split-at-first [Char]
+                         (string-matcher-or [Char]
+                                           (list (exact-char [Char] #\- #\-)
+                                                 (exact-char [Char] #\: #\:)))
+                         s))
+       (list "abc-123:def" "abc:123-def"))
+  (list (Just (Triple "abc" #\- "123:def"))
+        (Just (Triple "abc" #\: "123-def"))))
 
 ;;;;;;;
 
