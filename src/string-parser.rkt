@@ -34,8 +34,8 @@
           (Pair middle end)))
       (match (parser f)
         [(Just (Pair a end))
-         (let* ([prefix (substring str 0 start)]
-                [suffix (substring str end)])
+         (let ([prefix (substring str 0 start)]
+               [suffix (substring str end)])
            (Just (Triple prefix a suffix)))]
         [(Nothing)
          (if (>= start n)
@@ -56,8 +56,8 @@
           (Pair middle start)))
       (match (parser f)
         [(Just (Pair a start))
-         (let* ([prefix (substring str 0 start)]
-                [suffix (substring str end)])
+         (let ([prefix (substring str 0 start)]
+               [suffix (substring str end)])
            (Just (Triple prefix a suffix)))]
         [(Nothing)
          (if (<= end 0)
