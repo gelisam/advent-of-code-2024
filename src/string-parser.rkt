@@ -6,6 +6,8 @@
 (provide StringParser
          split-at-first
          split-at-last
+         starts-with
+         ends-with
          find-first
          find-last
          matching-char
@@ -66,6 +68,42 @@
          (if (<= end 0)
              (Nothing)
              (loop (- end 1)))]))))
+
+(define-forall [A]
+               (starts-with parser str)
+             : (-> (StringParser A)
+                   String
+                   (Maybe (Pair A String)))
+  (let ([n (string-length str)])
+    (: f (-> Integer (Maybe (Pair String Integer))))
+    (define (f len)
+      (let ([end len])
+        (if (<= end n)
+            (Just (Pair (substring str 0 end) end))
+            (Nothing))))
+    (match (parser f)
+      [(Just (Pair a end))
+      (Just (Pair a (substring str end)))]
+      [(Nothing)
+      (Nothing)])))
+
+(define-forall [A]
+               (ends-with parser str)
+             : (-> (StringParser A)
+                   String
+                   (Maybe (Pair String A)))
+  (let ([n (string-length str)])
+    (: f (-> Integer (Maybe (Pair String Integer))))
+    (define (f len)
+      (let ([start (- n len)])
+        (if (>= start 0)
+            (Just (Pair (substring str start) start))
+            (Nothing))))
+    (match (parser f)
+      [(Just (Pair a start))
+       (Just (Pair (substring str 0 start) a))]
+      [(Nothing)
+       (Nothing)])))
 
 (define-forall [A]
                (find-first [parser : (StringParser A)] str)
@@ -150,6 +188,22 @@
        (list "abc-def" "abc123-456def"))
   (list (Nothing)
         (Just (Triple "abc123-" "456" "def"))))
+(assert-equal
+  (map (lambda ([s : String])
+               (starts-with [String]
+                            (matching-chars char-numeric?)
+                            s))
+       (list "abc123" "123abc456"))
+  (list (Nothing)
+        (Just (Pair "123" "abc456"))))
+(assert-equal
+  (map (lambda ([s : String])
+               (ends-with [String]
+                          (matching-chars char-numeric?)
+                          s))
+       (list "123abc" "123abc456"))
+  (list (Nothing)
+        (Just (Pair "123abc" "456"))))
 (assert-equal
   (map (lambda ([s : String])
          (find-first [String]
