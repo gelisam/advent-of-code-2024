@@ -2,4 +2,4 @@
 set -e
 
 clear
-racket toy.rkt
+racket src/toy.rkt
