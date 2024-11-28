@@ -4,7 +4,7 @@
 
 (define-syntax (define-forall stx)
   (syntax-case stx (:)
-    [(_ [A ...] (name args ...) : T body ...)
+    [(_ (name [A ...] args ...) : T body ...)
      #`(begin
          (: tmp-name (All [A ...] T))
          (define (tmp-name args ...)

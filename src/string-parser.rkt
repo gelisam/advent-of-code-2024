@@ -23,8 +23,7 @@
   (All [X] (-> (-> Integer (Maybe (Pair String X)))
                (Maybe (Pair A X)))))
 
-(define-forall [A]
-               (split-at-first parser str)
+(define-forall (split-at-first [A] parser str)
              : (-> (StringParser A)
                    String
                    (Maybe (Triple String A String)))
@@ -46,8 +45,7 @@
              (Nothing)
              (loop (+ start 1)))]))))
 
-(define-forall [A]
-               (split-at-last parser str)
+(define-forall (split-at-last [A] parser str)
              : (-> (StringParser A)
                     String
                     (Maybe (Triple String A String)))
@@ -69,8 +67,7 @@
              (Nothing)
              (loop (- end 1)))]))))
 
-(define-forall [A]
-               (starts-with parser str)
+(define-forall (starts-with [A] parser str)
              : (-> (StringParser A)
                    String
                    (Maybe (Pair A String)))
@@ -87,8 +84,7 @@
       [(Nothing)
       (Nothing)])))
 
-(define-forall [A]
-               (ends-with parser str)
+(define-forall (ends-with [A] parser str)
              : (-> (StringParser A)
                    String
                    (Maybe (Pair String A)))
@@ -105,8 +101,7 @@
       [(Nothing)
        (Nothing)])))
 
-(define-forall [A]
-               (find-first [parser : (StringParser A)] str)
+(define-forall (find-first [A] [parser : (StringParser A)] str)
              : (-> (StringParser A)
                     String
                     (Maybe A))
@@ -116,8 +111,7 @@
     [(Nothing)
      (Nothing)]))
 
-(define-forall [A]
-               (find-last parser str)
+(define-forall (find-last [A] parser str)
              : (-> (StringParser A)
                    String
                    (Maybe A))
@@ -127,8 +121,7 @@
     [(Nothing)
      (Nothing)]))
 
-(define-forall [A]
-               (matching-char pred)
+(define-forall (matching-char [A] pred)
              : (-> (-> Char (Maybe A))
                    (StringParser A))
   (lambda (f)
@@ -256,8 +249,7 @@
                   "abc-def-ghi")
   (Just (Triple "abc" #\- "def-ghi")))
 
-(define-forall [A B]
-               (string-parser-map a2b parser)
+(define-forall (string-parser-map [A B] a2b parser)
              : (-> (-> A B)
                     (StringParser A)
                     (StringParser B))
@@ -275,8 +267,7 @@
                   "abc123def")
   (Just (Triple "abc" 3 "def")))
 
-(define-forall [A B]
-               (string-parser-value b parser)
+(define-forall (string-parser-value [A B] b parser)
              : (-> B
                    (StringParser A)
                    (StringParser B))
@@ -291,14 +282,12 @@
                   "abc123def")
   (Just (Triple "abc" "-" "def")))
 
-(define-forall [A]
-               (match-no-strings)
+(define-forall (match-no-strings [A])
              : (-> (StringParser A))
   (lambda (f)
     (Nothing)))
 
-(define-forall [A]
-               (string-parser-or parsers)
+(define-forall (string-parser-or [A] parsers)
              : (-> (Listof (StringParser A))
                     (StringParser A))
   (lambda (f)
