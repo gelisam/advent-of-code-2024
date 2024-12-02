@@ -11,6 +11,8 @@
 (set! input (file->lines "full-input.txt"))
 (define (check-equal? _x _y)
   (void))
+(define (check-true _)
+  (void))
 
 (define (parse-line line)
   (let ([parts (string-split line)])
@@ -37,43 +39,34 @@
   (list (list 3 4 2 1 3 3)
         (list 4 3 5 3 9 3)))
 
-(define (sort-integers xs)
-  (sort xs <=))
-(check-equal?
-  (sort-integers (list 3 4 2 1 3 3))
-  (list 1 2 3 3 3 4))
+(define keys
+  (first unsorted-lists))
+(define repeated-values
+  (second unsorted-lists))
 
-(define sorted-lists
-  (map sort-integers unsorted-lists))
-(check-equal?
-  sorted-lists
-  (list (list 1 2 3 3 3 4)
-        (list 3 3 3 4 5 9)))
+(define (hash-equal? h1 h2)
+  (and (= (hash-count h1) (hash-count h2))
+       (for/and ([(k v) (in-hash h1)])
+         (and (hash-has-key? h2 k)
+              (equal? v (hash-ref h2 k))))))
 
-(define sorted-pairs
-  (map sort-integers
-       (apply map list sorted-lists)))
-(check-equal?
-  sorted-pairs
-  (list (list 1 3)
-        (list 2 3)
-        (list 3 3)
-        (list 3 4)
-        (list 3 5)
-        (list 4 9)))
+(define counts (make-hash))
+(for ([value repeated-values])
+  (hash-update! counts value add1 0))
+(check-true
+  (hash-equal?
+    counts
+    (hash 4 1
+          3 3
+          5 1
+          9 1)))
 
-(define differences
-  (map (lambda (pair)
-         (- (second pair) (first pair)))
-       sorted-pairs))
+(define similarity-score
+  (for/sum ([key keys])
+    (* key
+       (hash-ref counts key 0))))
 (check-equal?
-  differences
-  (list 2 1 0 1 2 5))
+  similarity-score
+  31)
 
-(define sum-of-differences
-  (apply + differences))
-(check-equal?
-  sum-of-differences
-  11)
-
-sum-of-differences
+similarity-score
