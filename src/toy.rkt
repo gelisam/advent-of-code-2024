@@ -5,68 +5,60 @@
 (define input (file->lines "example-input.txt"))
 (check-equal?
   input
-  (list "3   4" "4   3" "2   5" "1   3" "3   9" "3   3"))
+  (list "7 6 4 2 1" "1 2 7 8 9" "9 7 6 2 1" "1 3 2 4 5" "8 6 4 4 1" "1 3 6 7 9"))
 
-; use the real input and disable the asserts
-(set! input (file->lines "full-input.txt"))
-(define (check-equal? _x _y)
-  (void))
-(define (check-true _)
-  (void))
+;; use the real input and disable the asserts
+;(set! input (file->lines "full-input.txt"))
+;(define (check-equal? _x _y)
+;  (void))
+;(define (check-true _)
+;  (void))
 
 (define (parse-line line)
   (let ([parts (string-split line)])
     (map string->number parts)))
 (check-equal?
-  (parse-line "3   4")
-  (list 3 4))
+  (parse-line "7 6 4 2 1")
+  (list 7 6 4 2 1))
 
-(define unsorted-pairs
+(define reports
   (map parse-line input))
+
+(define (increasing? xs)
+  (cond
+    [(null? xs)
+     #t]
+    [(null? (cdr xs))
+     #t]
+    [(<= (car xs) (cadr xs))
+     (increasing? (cdr xs))]
+    [else #f]))
+(check-true (increasing? (list 1 2 7 8 9)))
+(check-true (not (increasing? (list 1 2 8 7 9))))
+
+(define (decreasing? xs)
+  (increasing? (reverse xs)))
+(check-true (decreasing? (list 9 7 6 2 1)))
+(check-true (not (decreasing? (list 1 2 7 8 9))))
+
+(define (differences xs)
+  (apply map
+         (lambda (x y)
+           (abs (- x y)))
+         (list (cdr xs)
+               (drop-right xs 1))))
 (check-equal?
-  unsorted-pairs
-  (list (list 3 4)
-        (list 4 3)
-        (list 2 5)
-        (list 1 3)
-        (list 3 9)
-        (list 3 3)))
+  (differences (list 1 2 7 8 9))
+  (list 1 5 1 1))
 
-(define unsorted-lists
-  (apply map list unsorted-pairs))
+(define (safe? xs)
+  (let ([diffs (differences xs)])
+    (and (or (increasing? xs)
+            (decreasing? xs))
+         (>= (apply min diffs) 1)
+         (<= (apply max diffs) 3))))
 (check-equal?
-  unsorted-lists
-  (list (list 3 4 2 1 3 3)
-        (list 4 3 5 3 9 3)))
+  (map safe? reports)
+  (list #t #f #f #f #f #t))
 
-(define keys
-  (first unsorted-lists))
-(define repeated-values
-  (second unsorted-lists))
-
-(define (hash-equal? h1 h2)
-  (and (= (hash-count h1) (hash-count h2))
-       (for/and ([(k v) (in-hash h1)])
-         (and (hash-has-key? h2 k)
-              (equal? v (hash-ref h2 k))))))
-
-(define counts (make-hash))
-(for ([value repeated-values])
-  (hash-update! counts value add1 0))
-(check-true
-  (hash-equal?
-    counts
-    (hash 4 1
-          3 3
-          5 1
-          9 1)))
-
-(define similarity-score
-  (for/sum ([key keys])
-    (* key
-       (hash-ref counts key 0))))
-(check-equal?
-  similarity-score
-  31)
-
-similarity-score
+(length (filter safe? reports))
