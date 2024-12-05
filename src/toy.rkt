@@ -2,13 +2,13 @@
 (require rackunit)
 
 ; use the example input and run the asserts against it
-(define input (file->lines "example-input.txt"))
+(define input (file->string "example-input.txt"))
 (check-equal?
   input
-  (list "xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))"))
+  "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))\n")
 
 ;; use the real input and disable the asserts
-;(set! input (file->lines "full-input.txt"))
+;(set! input (file->string "full-input.txt"))
 ;(define (check-equal? _x _y)
 ;  (void))
 ;(define (check-true _)
@@ -33,37 +33,46 @@
             (list (substring s 0 i) (substring s i))))))
 (check-equal? (string-span char-alphabetic? "abc123") (list "abc" "123"))
 
-(define (parse-line line)
+(define (parse-line enabled? line)
   (define (try-next-char)
-    (parse-line (string-drop line 1)))
+    (parse-line enabled? (string-drop line 1)))
   (if (equal? line "")
       (list)
-      (match (string-drop-prefix? line "mul(")
+      (match (string-drop-prefix? line "do()")
         [(? string? rest)
-         (match (string-span char-numeric? rest)
-           [(list numeric-chars rest)
-            (if (non-empty-string? numeric-chars)
-                (let ([x (string->number numeric-chars)])
-                  (match (string-drop-prefix? rest ",")
-                    [(? string? rest)
-                     (match (string-span char-numeric? rest)
-                       [(list numeric-chars rest)
-                        (if (non-empty-string? numeric-chars)
-                            (let ([y (string->number numeric-chars)])
-                              (match (string-drop-prefix? rest ")")
-                                [(? string? rest)
-                                 (cons (list x y) (parse-line rest))]
-                                [_ (try-next-char)]))
-                            (try-next-char))])]
-                    [_ (try-next-char)]))
-                (try-next-char))])]
-        [_ (try-next-char)])))
+         (parse-line #t rest)]
+        [_
+         (match (string-drop-prefix? line "don't()")
+           [(? string? rest)
+            (parse-line #f rest)]
+           [_
+            (match (string-drop-prefix? line "mul(")
+              [(? string? rest)
+               (match (string-span char-numeric? rest)
+                 [(list numeric-chars rest)
+                  (if (non-empty-string? numeric-chars)
+                      (let ([x (string->number numeric-chars)])
+                        (match (string-drop-prefix? rest ",")
+                          [(? string? rest)
+                           (match (string-span char-numeric? rest)
+                             [(list numeric-chars rest)
+                              (if (non-empty-string? numeric-chars)
+                                  (let ([y (string->number numeric-chars)])
+                                    (match (string-drop-prefix? rest ")")
+                                      [(? string? rest)
+                                       (if enabled?
+                                           (cons (list x y) (parse-line enabled? rest))
+                                           (parse-line enabled? rest))]
+                                      [_ (try-next-char)]))
+                                  (try-next-char))])]
+                          [_ (try-next-char)]))
+                      (try-next-char))])]
+              [_ (try-next-char)])])])))
 (check-equal?
-  (parse-line "xxxmul(2,4)xxxmul(mul(2mul(2,mul(2,4mul(21,41)xxx")
-  (list (list 2 4) (list 21 41)))
+  (parse-line #t "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))")
+  (list (list 2 4) (list 8 5)))
 
 (define output
-  (for/sum ([line input])
-    (for/sum ([pair (parse-line line)])
-      (apply * pair))))
+  (for/sum ([pair (parse-line #t input)])
+    (apply * pair)))
 output
