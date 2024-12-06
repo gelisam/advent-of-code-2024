@@ -10,67 +10,66 @@
          (and x1
               (and-let* ([x2 v2] ...) body ...)))]))
 
+
 ; use the example input and run the asserts against it
-(define input (file->string "example-input.txt"))
+(define input (file->lines "example-input.txt"))
 (check-equal?
   input
-  "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))\n")
+  (list "MMMSXXMASM"
+        "MSAMXMSMSA"
+        "AMXSXMAAMM"
+        "MSAMASMSMX"
+        "XMASAMXAMM"
+        "XXAMMXXAMA"
+        "SMSMSASXSS"
+        "SAXAMASAAA"
+        "MAMMMXMMMM"
+        "MXMXAXMASX"))
 
 ;; use the real input and disable the asserts
-;(set! input (file->string "full-input.txt"))
+;(set! input (file->lines "full-input.txt"))
 ;(define (check-equal? _x _y)
 ;  (void))
 ;(define (check-true _)
 ;  (void))
 
-(define (string-drop s n)
-  (substring s n))
-(check-equal? (string-drop "abcdef" 3) "def")
+(define grid (make-hash))
+(for ([y (in-naturals 0)]
+      [row input])
+  (for ([x (in-naturals 0)]
+        [char (in-string row)])
+    (hash-set! grid (list x y) char)))
 
-(define (string-drop-prefix? s prefix)
-  (and (string-prefix? s prefix)
-       (string-drop s (string-length prefix))))
-(check-equal? (string-drop-prefix? "abcdef" "abc") "def")
-(check-equal? (string-drop-prefix? "abcdef" "def") #f)
+(define dirs
+  (for*/list ([dx (in-list '(1 0 -1))]
+              [dy (in-list '(1 0 -1))]
+              #:when (not (and (zero? dx)
+                               (zero? dy))))
+    (list dx dy)))
 
-(define (string-span pred s)
-  (let loop ([i 0])
-    (if (>= i (string-length s))
-        (list s "")
-        (if (pred (string-ref s i))
-            (loop (+ i 1))
-            (list (substring s 0 i) (substring s i))))))
-(check-equal? (string-span char-alphabetic? "abc123") (list "abc" "123"))
+(define (add xy dxy)
+  (match-define (list x y) xy)
+  (match-define (list dx dy) dxy)
+  (list (+ x dx) (+ y dy)))
+(check-equal? (add '(1 2) '(3 4)) '(4 6))
 
-(define (parse-line enabled? line)
-  (if (equal? line "")
-      (list)
-      (or (and-let* ([rest (string-drop-prefix? line "do()")])
-            (parse-line #t rest))
-          (and-let* ([rest (string-drop-prefix? line "don't()")])
-            (parse-line #f rest))
-          (and-let* ([rest (string-drop-prefix? line "mul(")]
-                     [numeric-chars-and-rest (string-span char-numeric? rest)]
-                     [numeric-chars (first numeric-chars-and-rest)]
-                     [rest (second numeric-chars-and-rest)]
-                     [_ (non-empty-string? numeric-chars)]
-                     [x (string->number numeric-chars)]
-                     [rest (string-drop-prefix? rest ",")]
-                     [numeric-chars-and-rest (string-span char-numeric? rest)]
-                     [numeric-chars (first numeric-chars-and-rest)]
-                     [rest (second numeric-chars-and-rest)]
-                     [_ (non-empty-string? numeric-chars)]
-                     [y (string->number numeric-chars)]
-                     [rest (string-drop-prefix? rest ")")])
-            (if enabled?
-                (cons (list x y) (parse-line enabled? rest))
-                (parse-line enabled? rest)))
-          (parse-line enabled? (string-drop line 1)))))
-(check-equal?
-  (parse-line #t "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))")
-  (list (list 2 4) (list 8 5)))
+(define (lookup-word xy0 dxy n)
+  (define xy xy0)
+  (define result
+    (for/list ([i (in-range n)])
+      (define c (hash-ref grid xy #f))
+      (set! xy (add xy dxy))
+      c))
+  (and (andmap values result)
+       result))
+(check-equal? (lookup-word '(0 0) '(1 1) 3) '(#\M #\S #\X))
 
-(define output
-  (for/sum ([pair (parse-line #t input)])
-    (apply * pair)))
-output
+(for/sum ([y (in-naturals 0)]
+          [row input])
+  (for/sum ([x (in-naturals 0)]
+            [char (in-string row)])
+    (for/sum ([dir dirs])
+      (or (and-let* ([word (lookup-word (list x y) dir 4)]
+                     [_ (equal? word (list #\X #\M #\A #\S))])
+            1)
+          0))))
