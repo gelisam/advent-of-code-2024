@@ -41,10 +41,8 @@
     (hash-set! grid (list x y) char)))
 
 (define dirs
-  (for*/list ([dx (in-list '(1 0 -1))]
-              [dy (in-list '(1 0 -1))]
-              #:when (not (and (zero? dx)
-                               (zero? dy))))
+  (for*/list ([dx (in-list '(1 -1))]
+              [dy (in-list '(1 -1))])
     (list dx dy)))
 
 (define (add xy dxy)
@@ -68,8 +66,14 @@
           [row input])
   (for/sum ([x (in-naturals 0)]
             [char (in-string row)])
-    (for/sum ([dir dirs])
-      (or (and-let* ([word (lookup-word (list x y) dir 4)]
-                     [_ (equal? word (list #\X #\M #\A #\S))])
+    (let ([xy (list x y)])
+      (or (and-let* ([center (hash-ref grid xy #f)]
+                     [_ (equal? center #\A)]
+                     [word1 (lookup-word (add xy '(-1 -1)) '(1 1) 3)]
+                     [word2 (lookup-word (add xy '(1 -1)) '(-1 1) 3)]
+                     [_ (or (equal? word1 (list #\M #\A #\S))
+                            (equal? word1 (list #\S #\A #\M)))]
+                     [_ (or (equal? word2 (list #\M #\A #\S))
+                            (equal? word2 (list #\S #\A #\M)))])
             1)
-          0))))
+        0))))
