@@ -1,30 +1,38 @@
 #lang racket
 (require rackunit)
 
-(define-syntax (and-let* stx)
-  (syntax-case stx ()
-    [(_ () body ...)
-     #`(begin body ...)]
-    [(_ ([x1 e1] [x2 v2] ...) body ...)
-     #`(let ([x1 e1])
-         (and x1
-              (and-let* ([x2 v2] ...) body ...)))]))
-
-
 ; use the example input and run the asserts against it
 (define input (file->lines "example-input.txt"))
 (check-equal?
   input
-  (list "MMMSXXMASM"
-        "MSAMXMSMSA"
-        "AMXSXMAAMM"
-        "MSAMASMSMX"
-        "XMASAMXAMM"
-        "XXAMMXXAMA"
-        "SMSMSASXSS"
-        "SAXAMASAAA"
-        "MAMMMXMMMM"
-        "MXMXAXMASX"))
+  (list "47|53"
+        "97|13"
+        "97|61"
+        "97|47"
+        "75|29"
+        "61|13"
+        "75|53"
+        "29|13"
+        "97|29"
+        "53|29"
+        "61|53"
+        "97|53"
+        "61|29"
+        "47|13"
+        "75|47"
+        "97|75"
+        "47|61"
+        "75|61"
+        "47|29"
+        "75|13"
+        "53|13"
+        ""
+        "75,47,61,53,29"
+        "97,61,53,29,13"
+        "75,29,13"
+        "75,97,47,61,53"
+        "61,13,29"
+        "97,13,75,29,47"))
 
 ;; use the real input and disable the asserts
 ;(set! input (file->lines "full-input.txt"))
@@ -33,47 +41,80 @@
 ;(define (check-true _)
 ;  (void))
 
-(define grid (make-hash))
-(for ([y (in-naturals 0)]
-      [row input])
-  (for ([x (in-naturals 0)]
-        [char (in-string row)])
-    (hash-set! grid (list x y) char)))
+(define (halve-by xs sep)
+  (match/values (splitf-at xs (lambda (x) (not (equal? x sep))))
+    [(prefix (cons _sep suffix))
+     (list prefix suffix)]
+    [(_ _)
+     #f]))
+(check-equal? (halve-by (list 1 2 3 4 3 2 1) 3)
+              (list (list 1 2) (list 4 3 2 1)))
+(check-equal? (halve-by (list 1 2 3) 10)
+              #f)
 
-(define dirs
-  (for*/list ([dx (in-list '(1 -1))]
-              [dy (in-list '(1 -1))])
-    (list dx dy)))
+(match-define (list rule-strings update-strings) (halve-by input ""))
 
-(define (add xy dxy)
-  (match-define (list x y) xy)
-  (match-define (list dx dy) dxy)
-  (list (+ x dx) (+ y dy)))
-(check-equal? (add '(1 2) '(3 4)) '(4 6))
+(define rules
+  (for/list ([rule-string rule-strings])
+    (map string->number (string-split rule-string "|"))))
+(check-equal? rules
+              (list '(47 53)
+                    '(97 13)
+                    '(97 61)
+                    '(97 47)
+                    '(75 29)
+                    '(61 13)
+                    '(75 53)
+                    '(29 13)
+                    '(97 29)
+                    '(53 29)
+                    '(61 53)
+                    '(97 53)
+                    '(61 29)
+                    '(47 13)
+                    '(75 47)
+                    '(97 75)
+                    '(47 61)
+                    '(75 61)
+                    '(47 29)
+                    '(75 13)
+                    '(53 13)))
 
-(define (lookup-word xy0 dxy n)
-  (define xy xy0)
-  (define result
-    (for/list ([i (in-range n)])
-      (define c (hash-ref grid xy #f))
-      (set! xy (add xy dxy))
-      c))
-  (and (andmap values result)
-       result))
-(check-equal? (lookup-word '(0 0) '(1 1) 3) '(#\M #\S #\X))
+(define updates
+  (for/list ([update-string update-strings])
+    (map string->number (string-split update-string ","))))
+(check-equal? updates
+              (list '(75 47 61 53 29)
+                    '(97 61 53 29 13)
+                    '(75 29 13)
+                    '(75 97 47 61 53)
+                    '(61 13 29)
+                    '(97 13 75 29 47)))
 
-(for/sum ([y (in-naturals 0)]
-          [row input])
-  (for/sum ([x (in-naturals 0)]
-            [char (in-string row)])
-    (let ([xy (list x y)])
-      (or (and-let* ([center (hash-ref grid xy #f)]
-                     [_ (equal? center #\A)]
-                     [word1 (lookup-word (add xy '(-1 -1)) '(1 1) 3)]
-                     [word2 (lookup-word (add xy '(1 -1)) '(-1 1) 3)]
-                     [_ (or (equal? word1 (list #\M #\A #\S))
-                            (equal? word1 (list #\S #\A #\M)))]
-                     [_ (or (equal? word2 (list #\M #\A #\S))
-                            (equal? word2 (list #\S #\A #\M)))])
-            1)
-        0))))
+(define (valid? update)
+  (define positions
+    (make-immutable-hash
+      (for/list ([i (in-naturals)]
+                 [x update])
+        (cons x i))))
+  (for/and ([rule rules])
+    (match-define (list x y) rule)
+    (match* ((hash-ref positions x #f)
+             (hash-ref positions y #f))
+      [(#f _)
+       #t]
+      [(_ #f)
+       #t]
+      [(i j)
+       (< i j)])))
+(check-equal? (map valid? updates)
+              '(#t #t #t #f #f #f))
+
+(define (middle-page xs)
+  (define n (length xs))
+  (list-ref xs (quotient n 2)))
+(check-equal? (middle-page (list 1 2 3 4 5))
+              3)
+
+(for/sum ([update updates] #:when (valid? update))
+  (middle-page update))
